@@ -1,9 +1,3 @@
-begin
-  require 'iconv'
-rescue Object
-  puts "no iconv, you might want to look into it."
-end
-
 require 'digest/sha1'
 module PermalinkFu
   class << self
@@ -12,8 +6,13 @@ module PermalinkFu
 
     # This method does the actual permalink escaping.
     def escape(string)
-      result = ((translation_to && translation_from) ? Iconv.iconv(translation_to, translation_from, string) : string).to_s
-      result.gsub!(/[^\x00-\x7F]+/, '') # Remove anything non-ASCII entirely (e.g. diacritics).
+      begin
+        result = ActiveSupport::Multibyte::Handlers::UTF8Handler.normalize(string.to_s, :kd)
+      rescue ActiveSupport::Multibyte::Handlers::EncodingError
+        require 'iconv'
+        result = Iconv.iconv('ascii//translit//IGNORE', 'utf-8', str).first.to_s
+      end
+      result.gsub!(/[^\x00-\x7F]/n, '') # Remove anything non-ASCII entirely (e.g. diacritics).
       result.gsub!(/[^\w_ \-]+/i,   '') # Remove unwanted chars.
       result.gsub!(/[ \-]+/i,      '-') # No more than one of the separator in a row.
       result.gsub!(/^\-|\-$/i,      '') # Remove leading/trailing separator.
@@ -30,17 +29,17 @@ module PermalinkFu
 
   # This is the plugin method available on all ActiveRecord models.
   module PluginMethods
-    # Specifies the given field(s) as a permalink, meaning it is passed through PermalinkFu.escape and set to the permalink_field.  This
-    # is done
+    # Specifies the given field(s) as a permalink, meaning it is passed through
+    # PermalinkFu.escape and set to the permalink_field.  This is done
     #
     #   class Foo < ActiveRecord::Base
     #     # stores permalink form of #title to the #permalink attribute
     #     has_permalink :title
-    #   
+    #
     #     # stores a permalink form of "#{category}-#{title}" to the #permalink attribute
-    #   
+    #
     #     has_permalink [:category, :title]
-    #   
+    #
     #     # stores permalink form of #title to the #category_permalink attribute
     #     has_permalink [:category, :title], :category_permalink
     #
@@ -101,7 +100,7 @@ module PermalinkFu
 
   # This contains instance methods for ActiveRecord models that have permalinks.
   module InstanceMethods
-  protected
+    protected
     def create_common_permalink
       return unless should_create_permalink?
       if read_attribute(self.class.permalink_field).to_s.empty?
@@ -144,7 +143,7 @@ module PermalinkFu
       attr_names.collect { |attr_name| send(attr_name).to_s } * " "
     end
 
-  private
+    private
     def should_create_permalink?
       return false unless permalink_fields_changed?
       if self.class.permalink_options[:if]
