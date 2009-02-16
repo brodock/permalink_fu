@@ -9,6 +9,8 @@ rescue LoadError
   puts "no ruby debugger"
 end
 
+gem 'activesupport'
+require 'active_support/core_ext/blank'
 
 class FauxColumn < Struct.new(:limit)
 end
@@ -349,8 +351,9 @@ class PermalinkFuTest < Test::Unit::TestCase
   def test_should_not_update_permalink_unless_field_changed
     @m = NoChangeModel.new
     @m.title = 'the permalink'
+    @m.permalink = 'unchanged'
     @m.validate
-    assert_nil @m.read_attribute(:permalink)
+    assert_equal 'unchanged', @m.read_attribute(:permalink)
   end
   
   def test_should_update_permalink_if_field_changed
@@ -365,6 +368,30 @@ class PermalinkFuTest < Test::Unit::TestCase
     @m.title = 'the permalink'
     @m.validate
     assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_if_the_existing_permalink_is_nil
+    @m = NoChangeModel.new
+    @m.title = 'the permalink'
+    @m.permalink = nil
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_if_the_existing_permalink_is_blank
+    @m = NoChangeModel.new
+    @m.title = 'the permalink'
+    @m.permalink = ''
+    @m.validate
+    assert_equal 'the-permalink', @m.read_attribute(:permalink)
+  end
+
+  def test_should_update_permalink_if_the_title_is_nil
+    @m = NoChangeModel.new
+    @m.title = nil
+    @m.validate
+    assert_not_nil @m.read_attribute(:permalink)
+    assert @m.read_attribute(:permalink).size > 0
   end
   
   def test_should_work_correctly_for_scoped_fields_with_nil_value
