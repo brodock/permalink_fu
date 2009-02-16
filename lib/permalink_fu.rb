@@ -7,7 +7,9 @@ module PermalinkFu
     # This method does the actual permalink escaping.
     def escape(string)
       begin
-        result = ActiveSupport::Multibyte::Handlers::UTF8Handler.normalize(string.to_s, :kd)
+        # replaced to support rails 2.2.2, change if using older version
+        #result = ActiveSupport::Multibyte::Handlers::UTF8Handler.normalize(string.to_s, :kd)
+        result = string.mb_chars.downcase.strip.normalize(:kd)
       rescue ActiveSupport::Multibyte::Handlers::EncodingError
         require 'iconv'
         result = Iconv.iconv('ascii//translit//IGNORE', 'utf-8', str).first.to_s
